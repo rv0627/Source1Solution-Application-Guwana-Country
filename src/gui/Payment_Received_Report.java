@@ -1,0 +1,480 @@
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JDialog.java to edit this template
+ */
+package gui;
+
+import com.formdev.flatlaf.intellijthemes.FlatArcOrangeIJTheme;
+import java.io.InputStream;
+import java.net.URL;
+import model.MySQL;
+import java.sql.ResultSet;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Vector;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
+import net.sf.jasperreports.engine.JasperFillManager;
+import net.sf.jasperreports.engine.JasperPrint;
+import net.sf.jasperreports.engine.JasperPrintManager;
+import net.sf.jasperreports.engine.data.JRTableModelDataSource;
+
+/**
+ *
+ * @author SAVEEN
+ */
+public class Payment_Received_Report extends javax.swing.JDialog {
+
+    /**
+     * Creates new form PaymentReceivedReport
+     */
+    public Payment_Received_Report(java.awt.Frame parent, boolean modal) {
+        super(parent, modal);
+        initComponents();
+        this.setTitle("Source 1 Solutions - Payment Received report");
+        loadPaymentReceivedReport("", "invoice_id", "ASC");
+        jDateChooser1.getDateEditor().setEnabled(false);
+    }
+
+    //load Payment Received Report
+    private void loadPaymentReceivedReport(String invoiceNo, String column, String method) {
+
+        try {
+            String query = "SELECT * FROM `invoice` "
+                    + "INNER JOIN `customers` ON `invoice`.`customers_customer_id` = `customers`.`customer_id` "
+                    + "INNER JOIN `payment_method` ON `invoice`.`payment_method_payment_method_id` =`payment_method`.`payment_method_id` "
+                    + "INNER JOIN `employee` ON `invoice`.`employee_employee_id` = `employee`.`employee_id` "
+                    + "WHERE `invoice`.`invoice_id` LIKE '" + invoiceNo + "%' ";
+
+            String query2 = "SELECT * FROM `excelsheetdata` "
+                    + "INNER JOIN `customers` ON `excelsheetdata`.`customers_customer_id`=`customers`.`customer_id` "
+                    + "INNER JOIN `excel_sheet_upload` "
+                    + "ON `excelsheetdata`.`excel_sheet_upload_excel_sheet_upload_id`=`excel_sheet_upload`.`excel_sheet_upload_id` "
+                    + "INNER JOIN `employee` ON `excel_sheet_upload`.`employee_employee_id`=`employee`.`employee_id` "
+                    + "WHERE `excelsheetdata`.`number` LIKE '" + invoiceNo + "%' ";
+
+            Date seacrchDate = null;
+
+            SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+
+            if (jDateChooser1.getDate() != null) {
+                seacrchDate = jDateChooser1.getDate();
+                query += "AND `invoice`.`invoice_date`='" + format.format(seacrchDate) + "'"
+                        + " AND `invoice`.`grandTotal`<= `invoice`.`paid_ammount` ";
+                
+                query2 += "AND `excelsheetdata`.`includeDates`='" + format.format(seacrchDate) + "'"
+                        + " AND `excelsheetdata`.`paidAmount`>=`excelsheetdata`.`total` ";
+            }
+
+            query += "ORDER BY `" + column + "` " + method + "";
+            
+            query2 += "ORDER BY `excelsheetdata`.`includeDates` DESC";
+
+            ResultSet resultSet = MySQL.execute(query);
+            ResultSet resultSet2 = MySQL.execute(query2);
+
+            DefaultTableModel model = (DefaultTableModel) jTable1.getModel();
+            model.setRowCount(0);
+
+            DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+            centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+
+            while (resultSet.next()) {
+
+                Vector<String> v = new Vector<>();
+                v.add(resultSet.getString("invoice.invoice_date"));
+                v.add(resultSet.getString("customers.first_name") + " " + resultSet.getString("customers.last_name"));
+                v.add(resultSet.getString("invoice.reference_no"));
+                v.add(resultSet.getString("payment_method.method"));
+                v.add(resultSet.getString("customers.notes"));
+                v.add(resultSet.getString("invoice.invoice_id"));
+                v.add(resultSet.getString("invoice.grandTotal"));
+                v.add(resultSet.getString("employee.first_name") + " " + resultSet.getString("employee.last_name"));
+
+                model.addRow(v);
+
+            }
+            
+            while (resultSet2.next()) {
+
+                Vector<String> v2 = new Vector<>();
+                v2.add(resultSet2.getString("excelsheetdata.includeDates"));
+                v2.add(resultSet2.getString("customers.first_name") + " " + resultSet2.getString("customers.last_name"));
+                v2.add("");
+                v2.add("");
+                v2.add(resultSet2.getString("customers.notes"));
+                v2.add(resultSet2.getString("excelsheetdata.number"));
+                v2.add(resultSet2.getString("excelsheetdata.total"));
+                v2.add(resultSet2.getString("employee.first_name") + " " + resultSet2.getString("employee.last_name"));
+
+                model.addRow(v2);
+
+            }
+
+            // Set cell renderer for each column to center alignment
+            for (int i = 0; i < model.getColumnCount(); i++) {
+                jTable1.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
+            }
+
+            jTable1.setModel(model);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Search Payment Received Report Table
+    private void PaymentReceivedReportSearch() {
+
+        int sort = jComboBox1.getSelectedIndex();
+
+        if (sort == 0) {
+            loadPaymentReceivedReport(jTextField1.getText(), "invoice_id", "ASC");
+        } else if (sort == 1) {
+            loadPaymentReceivedReport(jTextField1.getText(), "invoice_id", "DESC");
+        } else if (sort == 2) {
+            loadPaymentReceivedReport(jTextField1.getText(), "invoice_date", "ASC");
+        } else if (sort == 3) {
+            loadPaymentReceivedReport(jTextField1.getText(), "invoice_date", "DESC");
+        }
+
+    }
+
+    // Reset Payment Received Report
+    private void PaymentReceivedReportReset() {
+
+        jTextField1.setText("");
+        jComboBox1.setSelectedIndex(0);
+        jDateChooser1.setDate(null);
+        jTable1.clearSelection();
+        loadPaymentReceivedReport("", "invoice_id", "ASC");
+        jButton1.grabFocus();
+
+    }
+
+    /**
+     * This method is called from within the constructor to initialize the form.
+     * WARNING: Do NOT modify this code. The content of this method is always
+     * regenerated by the Form Editor.
+     */
+    @SuppressWarnings("unchecked")
+    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
+    private void initComponents() {
+
+        jPanel1 = new javax.swing.JPanel();
+        jPanel3 = new javax.swing.JPanel();
+        jLabel1 = new javax.swing.JLabel();
+        jPanel2 = new javax.swing.JPanel();
+        jLabel2 = new javax.swing.JLabel();
+        jTextField1 = new javax.swing.JTextField();
+        jComboBox1 = new javax.swing.JComboBox<>();
+        jLabel3 = new javax.swing.JLabel();
+        jDateChooser1 = new com.toedter.calendar.JDateChooser();
+        jLabel4 = new javax.swing.JLabel();
+        jButton1 = new javax.swing.JButton();
+        jButton23 = new javax.swing.JButton();
+        jPanel4 = new javax.swing.JPanel();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        jTable1 = new javax.swing.JTable();
+
+        setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+
+        jLabel1.setFont(new java.awt.Font("Segoe UI", 0, 21)); // NOI18N
+        jLabel1.setText("Payment Received Report");
+
+        javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
+        jPanel3.setLayout(jPanel3Layout);
+        jPanel3Layout.setHorizontalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jLabel1)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+        jPanel3Layout.setVerticalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jLabel1)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+
+        jLabel2.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        jLabel2.setText("Search from Invoice No.");
+
+        jTextField1.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        jTextField1.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyReleased(java.awt.event.KeyEvent evt) {
+                jTextField1KeyReleased(evt);
+            }
+        });
+
+        jComboBox1.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        jComboBox1.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Date ASC", "Date DESC", "Invoice No. ASC", "Invoice No. DESC" }));
+        jComboBox1.addItemListener(new java.awt.event.ItemListener() {
+            public void itemStateChanged(java.awt.event.ItemEvent evt) {
+                jComboBox1ItemStateChanged(evt);
+            }
+        });
+
+        jLabel3.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        jLabel3.setText("Sort by");
+
+        jDateChooser1.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        jDateChooser1.addPropertyChangeListener(new java.beans.PropertyChangeListener() {
+            public void propertyChange(java.beans.PropertyChangeEvent evt) {
+                jDateChooser1PropertyChange(evt);
+            }
+        });
+
+        jLabel4.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        jLabel4.setText("Filter by date");
+
+        jButton1.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        jButton1.setText("Print Report");
+        jButton1.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton1ActionPerformed(evt);
+            }
+        });
+
+        jButton23.setIcon(new javax.swing.ImageIcon(getClass().getResource("/img/arrow-circle.png"))); // NOI18N
+        jButton23.setHorizontalTextPosition(javax.swing.SwingConstants.CENTER);
+        jButton23.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                jButton23MousePressed(evt);
+            }
+            public void mouseReleased(java.awt.event.MouseEvent evt) {
+                jButton23MouseReleased(evt);
+            }
+        });
+        jButton23.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton23ActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
+        jPanel2.setLayout(jPanel2Layout);
+        jPanel2Layout.setHorizontalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, 206, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel2))
+                .addGap(18, 18, 18)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, 197, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel3))
+                .addGap(18, 18, 18)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jLabel4)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(jDateChooser1, javax.swing.GroupLayout.PREFERRED_SIZE, 156, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(18, 18, 18)
+                        .addComponent(jButton23, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 170, Short.MAX_VALUE)
+                .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 203, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap())
+        );
+        jPanel2Layout.setVerticalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(jLabel2)
+                            .addComponent(jLabel3)
+                            .addComponent(jLabel4))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                            .addComponent(jTextField1, javax.swing.GroupLayout.DEFAULT_SIZE, 39, Short.MAX_VALUE)
+                            .addComponent(jComboBox1)
+                            .addComponent(jDateChooser1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addComponent(jButton23, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                    .addComponent(jButton1, javax.swing.GroupLayout.PREFERRED_SIZE, 39, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+
+        jTable1.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        jTable1.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+
+            },
+            new String [] {
+                "Date", "Customer Name", "Reference No.", "Payment Method", "Notes", "Invoice No.", "Amount ($)", "Employee"
+            }
+        ) {
+            boolean[] canEdit = new boolean [] {
+                false, false, false, false, false, false, false, false
+            };
+
+            public boolean isCellEditable(int rowIndex, int columnIndex) {
+                return canEdit [columnIndex];
+            }
+        });
+        jScrollPane1.setViewportView(jTable1);
+
+        javax.swing.GroupLayout jPanel4Layout = new javax.swing.GroupLayout(jPanel4);
+        jPanel4.setLayout(jPanel4Layout);
+        jPanel4Layout.setHorizontalGroup(
+            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel4Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jScrollPane1)
+                .addContainerGap())
+        );
+        jPanel4Layout.setVerticalGroup(
+            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel4Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 378, Short.MAX_VALUE)
+                .addContainerGap())
+        );
+
+        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
+        jPanel1.setLayout(jPanel1Layout);
+        jPanel1Layout.setHorizontalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(jPanel4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap())
+        );
+        jPanel1Layout.setVerticalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jPanel4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap())
+        );
+
+        javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
+        getContentPane().setLayout(layout);
+        layout.setHorizontalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap())
+        );
+        layout.setVerticalGroup(
+            layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap())
+        );
+
+        pack();
+        setLocationRelativeTo(null);
+    }// </editor-fold>//GEN-END:initComponents
+
+    private void jTextField1KeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_jTextField1KeyReleased
+        // TODO add your handling code here:
+        PaymentReceivedReportSearch();
+    }//GEN-LAST:event_jTextField1KeyReleased
+
+    private void jComboBox1ItemStateChanged(java.awt.event.ItemEvent evt) {//GEN-FIRST:event_jComboBox1ItemStateChanged
+        // TODO add your handling code here:
+        PaymentReceivedReportSearch();
+    }//GEN-LAST:event_jComboBox1ItemStateChanged
+
+    private void jDateChooser1PropertyChange(java.beans.PropertyChangeEvent evt) {//GEN-FIRST:event_jDateChooser1PropertyChange
+        // TODO add your handling code here:
+        if (jTextField1.getText().isEmpty()) {
+            loadPaymentReceivedReport("", "invoice_id", "ASC");
+            PaymentReceivedReportSearch();
+        } else {
+            loadPaymentReceivedReport(jTextField1.getText(), "invoice_id", "ASC");
+            PaymentReceivedReportSearch();
+        }
+    }//GEN-LAST:event_jDateChooser1PropertyChange
+
+    private void jButton23MousePressed(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jButton23MousePressed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_jButton23MousePressed
+
+    private void jButton23MouseReleased(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_jButton23MouseReleased
+        // TODO add your handling code here:
+    }//GEN-LAST:event_jButton23MouseReleased
+
+    private void jButton23ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton23ActionPerformed
+        // TODO add your handling code here:
+        PaymentReceivedReportReset();
+    }//GEN-LAST:event_jButton23ActionPerformed
+
+    private void jButton1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton1ActionPerformed
+        // TODO add your handling code here:
+        if (jDateChooser1.getDate() == null) {
+            JOptionPane.showMessageDialog(this, "First you select a date.", "Warning", JOptionPane.WARNING_MESSAGE);
+        } else {
+
+            SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+            Date seacrchDate = jDateChooser1.getDate();
+
+            try {
+                //String path = "src//reports//PaymentReport.jasper";
+
+                InputStream reportStream = MainInterface.class.getResourceAsStream("/reports/PaymentReport.jasper");
+                URL imageUrl = MainInterface.class.getResource("/img/IMG_report.jpg");
+
+                HashMap<String, Object> parameters = new HashMap<>();
+                parameters.put("Parameter1", format.format(seacrchDate));
+                parameters.put("ImageFilePath", imageUrl.toString()); // Replace with the actual path
+
+                JRTableModelDataSource dataSource = new JRTableModelDataSource(jTable1.getModel());
+
+                //JasperPrintManager.printReport(jasperPrint, true);
+                if (reportStream != null) {
+                    // Jasper Report file found, proceed with generating the report
+                    JasperPrint jasperPrint = JasperFillManager.fillReport(reportStream, parameters, dataSource);
+
+                    // Close the stream after use
+                    reportStream.close();
+
+                    // Print the report
+                    JasperPrintManager.printReport(jasperPrint, true);
+                } else {
+                    // Jasper Report file not found, handle the situation gracefully
+                    JOptionPane.showMessageDialog(this, "Jasper Report file not found. Unable to generate the report.", "Warning", JOptionPane.WARNING_MESSAGE);
+
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+        }
+    }//GEN-LAST:event_jButton1ActionPerformed
+
+    // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton jButton1;
+    private javax.swing.JButton jButton23;
+    private javax.swing.JComboBox<String> jComboBox1;
+    private com.toedter.calendar.JDateChooser jDateChooser1;
+    private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel2;
+    private javax.swing.JLabel jLabel3;
+    private javax.swing.JLabel jLabel4;
+    private javax.swing.JPanel jPanel1;
+    private javax.swing.JPanel jPanel2;
+    private javax.swing.JPanel jPanel3;
+    private javax.swing.JPanel jPanel4;
+    private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JTable jTable1;
+    private javax.swing.JTextField jTextField1;
+    // End of variables declaration//GEN-END:variables
+}
